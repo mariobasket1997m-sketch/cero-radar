@@ -1,0 +1,91 @@
+name: Radar y avisos Telegram
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'   # cada 30 min (GitHub puede retrasarlo unos minutos)
+  workflow_dispatch:
+    inputs:
+      test_telegram:
+        description: 'Enviar solo un mensaje de prueba a Telegram'
+        type: boolean
+        default: false
+
+concurrency:
+  group: radar
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      TELEGRAM_ENABLED: 'true'
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_DAILY_BUDGET_EUR: '3'
+      AMAZON_ASSOCIATE_TAG: ${{ secrets.AMAZON_ASSOCIATE_TAG }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comprobar secretos
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Faltan los secretos TELEGRAM_BOT_TOKEN y/o TELEGRAM_CHAT_ID (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+      - name: Mensaje de prueba
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_telegram }}
+        run: |
+          curl -sS -f -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=✅ cero-radar conectado: recibirás aquí los avisos de chollos." > /dev/null
+          echo "Mensaje de prueba enviado."
+
+      - uses: actions/setup-python@v5
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.test_telegram) }}
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Restaurar base de datos
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.test_telegram) }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            data
+            config/market.local.json
+          key: cero-data-${{ github.run_id }}
+          restore-keys: cero-data-
+
+      - name: Instalar y configurar
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.test_telegram) }}
+        run: |
+          python -m pip install -r requirements.txt
+          python configure.py --country ES
+
+      - name: Arrancar el panel
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.test_telegram) }}
+        run: |
+          nohup python run.py > server.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8765/api/status > /dev/null; then echo "Panel listo"; exit 0; fi
+            sleep 2
+          done
+          echo "El panel no arrancó"; tail -n 50 server.log; exit 1
+
+      - name: Rastrear
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.test_telegram) }}
+        run: python hunt.py --profile normal --wait
+
+      - name: Enviar avisos a Telegram
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.test_telegram) }}
+        run: python -m cero.notify --send
+
+      - name: Log del servidor si falla
+        if: ${{ failure() }}
+        run: tail -n 80 server.log || true
