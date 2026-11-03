@@ -48,22 +48,33 @@ def send_deal(deal,silent=False):
     shipping='Envío por confirmar' if deal.get('shipping') is None else f"Gastos mostrados: {deal['shipping']:.2f} {currency}"
     caption=f'<b>{title}</b>\n{price:.2f} {currency} · {store}\n{shipping}\n<a href="{url}">Ver en tienda</a>'
     api=os.environ.get('TELEGRAM_API','https://api.telegram.org')
+    # TELEGRAM_CHAT_ID admite varios destinatarios separados por comas (por ejemplo "123456,789012").
+    chats=[c.strip() for c in str(TELEGRAM_CHAT_ID).split(',') if c.strip()]
+    delivered=False
+    for chat in chats:
+        if _send_one(requests,api,TELEGRAM_BOT_TOKEN,chat,caption,buffer.getvalue(),silent):delivered=True
+    return delivered
+
+
+def _send_one(requests,api,token,chat,caption,photo,silent):
+    flag='true' if silent else 'false'
     try:
         from curl_cffi import CurlMime
         mp=CurlMime()
         try:
-            for name,value in (('chat_id',TELEGRAM_CHAT_ID),('caption',caption),('parse_mode','HTML'),('disable_notification','true' if silent else 'false')):
+            for name,value in (('chat_id',chat),('caption',caption),('parse_mode','HTML'),('disable_notification',flag)):
                 mp.addpart(name=name,data=str(value).encode('utf-8'))
-            mp.addpart(name='photo',content_type='image/jpeg',filename='producto.jpg',data=buffer.getvalue())
-            response=requests.post(f'{api}/bot{TELEGRAM_BOT_TOKEN}/sendPhoto',multipart=mp,timeout=30)
+            mp.addpart(name='photo',content_type='image/jpeg',filename='producto.jpg',data=photo)
+            response=requests.post(f'{api}/bot{token}/sendPhoto',multipart=mp,timeout=30)
         finally:mp.close()
         if response.status_code==200 and response.json().get('ok') is True:return True
     except Exception:pass
     # Si falla la foto, el aviso sale igualmente como texto con enlace.
     try:
-        response=requests.post(f'{api}/bot{TELEGRAM_BOT_TOKEN}/sendMessage',data={'chat_id':TELEGRAM_CHAT_ID,'text':caption,'parse_mode':'HTML','disable_web_page_preview':'false','disable_notification':'true' if silent else 'false'},timeout=20)
+        response=requests.post(f'{api}/bot{token}/sendMessage',data={'chat_id':chat,'text':caption,'parse_mode':'HTML','disable_web_page_preview':'false','disable_notification':flag},timeout=20)
         return response.status_code==200 and response.json().get('ok') is True
     except Exception:return False
+
 
 def send_note(text):return False
 
