@@ -10,7 +10,8 @@ from datetime import datetime,timedelta,timezone
 from urllib.parse import urlsplit
 from cero.db import connect,unpack,now
 from cero.telegram import armed,send_deal
-from cero.sizes import wearable
+from cero.filters import unwanted
+from cero.telegram import targets_for
 
 COOLDOWN_DAYS=7
 MAX_PER_RUN=15  # se envían primero los de mayor puntuación
@@ -58,8 +59,8 @@ def main():
             sent=repeated=0;seen=set()
             for row in rows:
                 deal=unpack(row);key=dedup_key(deal)
-                if not wearable(deal):
-                    # Ropa o calzado que no es de tu talla: se descarta sin avisar.
+                if unwanted(deal) or not targets_for(deal):
+                    # Libros, o ropa/calzado que no es de la talla de nadie: se descarta sin avisar.
                     c.execute('UPDATE notifications SET sent_at=? WHERE id=?',(now(),row['notification_id']));c.commit();continue
                 if key in seen or is_repeat(c,deal):
                     # Repetido: se da por tratado sin enviar.

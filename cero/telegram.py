@@ -27,6 +27,21 @@ def armed():
     from cero.config import TELEGRAM_BOT_TOKEN,TELEGRAM_CHAT_ID
     return os.environ.get('TELEGRAM_ENABLED','false').lower()=='true' and bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
 
+def chat_targets():
+    """TELEGRAM_CHAT_ID: ids separados por comas; sufijo opcional ':hombre' o ':mujer' para su perfil de tallas."""
+    from cero.config import TELEGRAM_CHAT_ID
+    out=[]
+    for part in str(TELEGRAM_CHAT_ID).split(','):
+        chat,_,profile=part.strip().partition(':')
+        if chat.strip():out.append((chat.strip(),profile.strip().lower() or 'hombre'))
+    return out
+
+
+def targets_for(deal):
+    from cero.sizes import wearable
+    return [chat for chat,profile in chat_targets() if wearable(deal,profile)]
+
+
 def send_deal(deal,silent=False):
     if not armed() or deal.get('status')!='verified' or deal.get('is_sample') or deal.get('image_status')!='verified':return False
     if deal.get('price')==0 and deal.get('free_review')!='accepted':return False
@@ -49,7 +64,7 @@ def send_deal(deal,silent=False):
     caption=f'<b>{title}</b>\n{price:.2f} {currency} · {store}\n{shipping}\n<a href="{url}">Ver en tienda</a>'
     api=os.environ.get('TELEGRAM_API','https://api.telegram.org')
     # TELEGRAM_CHAT_ID admite varios destinatarios separados por comas (por ejemplo "123456,789012").
-    chats=[c.strip() for c in str(TELEGRAM_CHAT_ID).split(',') if c.strip()]
+    chats=targets_for(deal)
     delivered=False
     for chat in chats:
         if _send_one(requests,api,TELEGRAM_BOT_TOKEN,chat,caption,buffer.getvalue(),silent):delivered=True

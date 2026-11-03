@@ -40,3 +40,39 @@ class SizesTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class ProfileTests(unittest.TestCase):
+    def test_profiles_are_separate(self):
+        jeans=d('Pantalón vaquero','27W / 30L')
+        self.assertTrue(wearable(jeans,'mujer'));self.assertFalse(wearable(jeans,'hombre'))
+        big=d('Pantalón vaquero','33W / 34L')
+        self.assertTrue(wearable(big,'hombre'));self.assertFalse(wearable(big,'mujer'))
+        self.assertTrue(wearable(d('Zapatillas','44'),'hombre'));self.assertFalse(wearable(d('Zapatillas','44'),'mujer'))
+        self.assertTrue(wearable(d('Zapatillas','38'),'mujer'));self.assertFalse(wearable(d('Zapatillas','38'),'hombre'))
+        self.assertTrue(wearable(d('Camiseta','S'),'mujer'));self.assertFalse(wearable(d('Camiseta','S'),'hombre'))
+        self.assertTrue(wearable(d('Camiseta','XL'),'hombre'));self.assertFalse(wearable(d('Camiseta','XL'),'mujer'))
+
+    def test_chat_targets_and_routing(self):
+        import os
+        from importlib import reload
+        os.environ['TELEGRAM_CHAT_ID']='1, 2:mujer ,3'
+        import cero.config as cfg;reload(cfg)
+        from cero import telegram
+        self.assertEqual(telegram.chat_targets(),[('1','hombre'),('2','mujer'),('3','hombre')])
+        self.assertEqual(telegram.targets_for(d('Pantalón vaquero','27W / 30L')),['2'])
+        self.assertEqual(telegram.targets_for(d('Zapatillas','44')),['1','3'])
+        self.assertEqual(telegram.targets_for(d('Auriculares','')),['1','2','3'])
+        self.assertEqual(telegram.targets_for(d('Camiseta','XS')),[])
+        os.environ.pop('TELEGRAM_CHAT_ID');reload(cfg)
+
+
+class BooksTests(unittest.TestCase):
+    def test_books_unwanted(self):
+        from cero.filters import unwanted
+        self.assertTrue(unwanted(d('El nombre del viento','Tapa blanda')))
+        self.assertTrue(unwanted(d('Novela histórica','')))
+        self.assertTrue(unwanted(d('Libro de cocina','')))
+        self.assertTrue(unwanted(d('Dune','Edición Kindle')))
+        self.assertFalse(unwanted(d('Zapatillas running','44')))
+        self.assertFalse(unwanted(d('Auriculares bluetooth','Negro')))
