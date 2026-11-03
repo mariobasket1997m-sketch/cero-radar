@@ -27,7 +27,7 @@ def armed():
     from cero.config import TELEGRAM_BOT_TOKEN,TELEGRAM_CHAT_ID
     return os.environ.get('TELEGRAM_ENABLED','false').lower()=='true' and bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
 
-def send_deal(deal):
+def send_deal(deal,silent=False):
     if not armed() or deal.get('status')!='verified' or deal.get('is_sample') or deal.get('image_status')!='verified':return False
     if deal.get('price')==0 and deal.get('free_review')!='accepted':return False
     if not deal.get('checked_at') or (datetime.now(timezone.utc)-datetime.fromisoformat(deal['checked_at'])).total_seconds()>7200:return False
@@ -52,7 +52,7 @@ def send_deal(deal):
         from curl_cffi import CurlMime
         mp=CurlMime()
         try:
-            for name,value in (('chat_id',TELEGRAM_CHAT_ID),('caption',caption),('parse_mode','HTML')):
+            for name,value in (('chat_id',TELEGRAM_CHAT_ID),('caption',caption),('parse_mode','HTML'),('disable_notification','true' if silent else 'false')):
                 mp.addpart(name=name,data=str(value).encode('utf-8'))
             mp.addpart(name='photo',content_type='image/jpeg',filename='producto.jpg',data=buffer.getvalue())
             response=requests.post(f'{api}/bot{TELEGRAM_BOT_TOKEN}/sendPhoto',multipart=mp,timeout=30)
@@ -61,7 +61,7 @@ def send_deal(deal):
     except Exception:pass
     # Si falla la foto, el aviso sale igualmente como texto con enlace.
     try:
-        response=requests.post(f'{api}/bot{TELEGRAM_BOT_TOKEN}/sendMessage',data={'chat_id':TELEGRAM_CHAT_ID,'text':caption,'parse_mode':'HTML','disable_web_page_preview':'false'},timeout=20)
+        response=requests.post(f'{api}/bot{TELEGRAM_BOT_TOKEN}/sendMessage',data={'chat_id':TELEGRAM_CHAT_ID,'text':caption,'parse_mode':'HTML','disable_web_page_preview':'false','disable_notification':'true' if silent else 'false'},timeout=20)
         return response.status_code==200 and response.json().get('ok') is True
     except Exception:return False
 

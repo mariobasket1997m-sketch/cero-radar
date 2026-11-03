@@ -61,7 +61,7 @@ def main():
                     # Repetido: se da por tratado sin enviar.
                     c.execute('UPDATE notifications SET sent_at=? WHERE id=?',(now(),row['notification_id']));c.commit();repeated+=1;continue
                 if sent>=MAX_PER_RUN:break  # el resto queda en bandeja para el siguiente ciclo
-                if send_deal(deal):
+                if send_deal(deal,silent=sent>0):  # solo el primer aviso de cada tanda suena; el resto, en silencio
                     seen.add(key);remember(c,deal)
                     c.execute('UPDATE notifications SET sent_at=? WHERE id=?',(now(),row['notification_id']));c.commit();sent+=1
             print(f'Enviados: {sent}. Repetidos omitidos: {repeated}.')
