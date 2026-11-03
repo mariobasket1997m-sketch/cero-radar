@@ -182,6 +182,14 @@ def _apply(d,item):
     _priority(d)
 
 
+def _generation_config():
+    """Modelos 2.x: sin razonamiento (thinkingBudget 0). Modelos 3.x: thinkingLevel bajo y más margen de salida."""
+    base={'responseMimeType':'application/json','responseSchema':RESPONSE_SCHEMA}
+    if GEMINI_MODEL.startswith('gemini-2'):
+        return {**base,'temperature':0,'maxOutputTokens':2400,'thinkingConfig':{'thinkingBudget':0}}
+    return {**base,'maxOutputTokens':8192,'thinkingConfig':{'thinkingLevel':'low'}}
+
+
 def score_deals(conn,deals,log):
     pending=[]
     for d in deals:
@@ -228,7 +236,7 @@ def score_deals(conn,deals,log):
             r=requests.post(f'https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent',
               headers={'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},
               json={'contents':[{'parts':[{'text':prompt}]}],
-                    'generationConfig':{'temperature':0,'maxOutputTokens':2400,'responseMimeType':'application/json','responseSchema':RESPONSE_SCHEMA,'thinkingConfig':{'thinkingBudget':0}}},
+                    'generationConfig':_generation_config()},
               timeout=25,impersonate='chrome')
         except Exception:
             # Un timeout puede haber generado coste: conservar la reserva evita sobrepasar el límite.
