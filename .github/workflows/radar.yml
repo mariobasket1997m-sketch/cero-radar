@@ -2,7 +2,8 @@ name: Radar y avisos Telegram
 
 on:
   schedule:
-    - cron: '7,37 * * * *'   # cada 30 min (GitHub puede retrasarlo unos minutos)
+    # Solo por la mañana, cada 30 min. Hora UTC: 7-12 UTC = 8:07-13:37 en invierno (9:07-14:37 en verano).
+    - cron: '7,37 7-12 * * *'
   workflow_dispatch:
     inputs:
       test_telegram:
