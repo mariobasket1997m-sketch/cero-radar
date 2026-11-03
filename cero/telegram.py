@@ -47,8 +47,21 @@ def send_deal(deal):
     price=deal.get('price');currency=html.escape(deal.get('currency') or 'EUR');store=html.escape(deal.get('store',''))
     shipping='Envío por confirmar' if deal.get('shipping') is None else f"Gastos mostrados: {deal['shipping']:.2f} {currency}"
     caption=f'<b>{title}</b>\n{price:.2f} {currency} · {store}\n{shipping}\n<a href="{url}">Ver en tienda</a>'
+    api=os.environ.get('TELEGRAM_API','https://api.telegram.org')
     try:
-        response=requests.post(f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto',data={'chat_id':TELEGRAM_CHAT_ID,'caption':caption,'parse_mode':'HTML'},files={'photo':('producto.jpg',buffer.getvalue(),'image/jpeg')},timeout=20)
+        from curl_cffi import CurlMime
+        mp=CurlMime()
+        try:
+            for name,value in (('chat_id',TELEGRAM_CHAT_ID),('caption',caption),('parse_mode','HTML')):
+                mp.addpart(name=name,data=str(value).encode('utf-8'))
+            mp.addpart(name='photo',content_type='image/jpeg',filename='producto.jpg',data=buffer.getvalue())
+            response=requests.post(f'{api}/bot{TELEGRAM_BOT_TOKEN}/sendPhoto',multipart=mp,timeout=30)
+        finally:mp.close()
+        if response.status_code==200 and response.json().get('ok') is True:return True
+    except Exception:pass
+    # Si falla la foto, el aviso sale igualmente como texto con enlace.
+    try:
+        response=requests.post(f'{api}/bot{TELEGRAM_BOT_TOKEN}/sendMessage',data={'chat_id':TELEGRAM_CHAT_ID,'text':caption,'parse_mode':'HTML','disable_web_page_preview':'false'},timeout=20)
         return response.status_code==200 and response.json().get('ok') is True
     except Exception:return False
 
