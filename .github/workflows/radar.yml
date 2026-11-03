@@ -44,10 +44,21 @@ jobs:
       - name: Mensaje de prueba
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_telegram }}
         run: |
-          curl -sS -f -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=✅ cero-radar conectado: recibirás aquí los avisos de chollos." > /dev/null
-          echo "Mensaje de prueba enviado."
+          ok=0; fail=0
+          IFS=',' read -ra ENTRIES <<< "$TELEGRAM_CHAT_ID"
+          for entry in "${ENTRIES[@]}"; do
+            id="${entry%%:*}"; id="${id// /}"
+            [ -z "$id" ] && continue
+            if curl -sS -f -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+                 --data-urlencode "chat_id=${id}" \
+                 --data-urlencode "text=✅ cero-radar conectado: recibirás aquí los avisos de chollos." > /dev/null; then
+              ok=$((ok+1))
+            else
+              fail=$((fail+1)); echo "No se pudo enviar a un destinatario (¿ha pulsado Iniciar en el bot?)"
+            fi
+          done
+          echo "Mensajes de prueba enviados: $ok. Fallidos: $fail."
+          [ "$ok" -gt 0 ]
 
       - uses: actions/setup-python@v5
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.test_telegram) }}
