@@ -1,9 +1,8 @@
 name: Radar y avisos Telegram
 
 on:
-  # schedule desactivado temporalmente; para reactivarlo, descomenta las dos líneas siguientes:
-  # schedule:
-  #   - cron: '7,37 * * * *'
+  schedule:
+    - cron: '7,37 * * * *'   # cada 30 min (GitHub puede retrasarlo unos minutos)
   workflow_dispatch:
     inputs:
       test_telegram:
