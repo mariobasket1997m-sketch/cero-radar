@@ -2,8 +2,9 @@ name: Radar y avisos Telegram
 
 on:
   schedule:
-    # Solo por la mañana, cada 30 min. Hora UTC: 7-12 UTC = 8:07-13:37 en invierno (9:07-14:37 en verano).
-    - cron: '7,37 7-12 * * *'
+    # De 7:07 a 23:07 hora de España en invierno, cada 30 min (en verano, +1 h porque cron va en UTC).
+    - cron: '7,37 6-21 * * *'
+    - cron: '7 22 * * *'
   workflow_dispatch:
     inputs:
       test_telegram:

@@ -12,7 +12,7 @@ from cero.db import connect,unpack,now
 from cero.telegram import armed,send_deal
 
 COOLDOWN_DAYS=7
-MAX_PER_RUN=15
+MAX_PER_RUN=15  # se envían primero los de mayor puntuación
 
 
 def _norm(text):
@@ -51,7 +51,7 @@ def main():
     c=connect()
     try:
         _ensure_log(c)
-        rows=c.execute('SELECT n.id notification_id,d.* FROM notifications n JOIN deals d ON d.id=n.deal_id WHERE n.sent_at IS NULL ORDER BY n.id LIMIT 200').fetchall()
+        rows=c.execute('SELECT n.id notification_id,d.* FROM notifications n JOIN deals d ON d.id=n.deal_id WHERE n.sent_at IS NULL ORDER BY COALESCE(d.score,0) DESC,n.id LIMIT 200').fetchall()
         print(str(len(rows))+' avisos en bandeja. '+('Envío activado.' if args.send else 'Sólo lectura: no se envían mensajes.'))
         if args.send:
             sent=repeated=0;seen=set()
