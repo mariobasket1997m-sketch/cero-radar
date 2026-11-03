@@ -61,7 +61,12 @@ def send_deal(deal,silent=False):
     title=html.escape(deal.get('title','')[:180]);url=html.escape(affiliate_url(deal['url']),quote=True)
     price=deal.get('price');currency=html.escape(deal.get('currency') or 'EUR');store=html.escape(deal.get('store',''))
     shipping='Envío por confirmar' if deal.get('shipping') is None else f"Gastos mostrados: {deal['shipping']:.2f} {currency}"
-    caption=f'<b>{title}</b>\n{price:.2f} {currency} · {store}\n{shipping}\n<a href="{url}">Ver en tienda</a>'
+    before=''
+    if price and deal.get('reference_price') and (deal.get('discount_pct') or 0)>0:
+        before=f"Antes: {deal['reference_price']:.2f} {currency} (-{deal['discount_pct']:.0f} %)"
+        if deal.get('reference_source'):before+=' · '+html.escape(str(deal['reference_source'])[:60])
+        before+='\n'
+    caption=f'<b>{title}</b>\n{price:.2f} {currency} · {store}\n{before}{shipping}\n<a href="{url}">Ver en tienda</a>'
     api=os.environ.get('TELEGRAM_API','https://api.telegram.org')
     # TELEGRAM_CHAT_ID admite varios destinatarios separados por comas (por ejemplo "123456,789012").
     chats=targets_for(deal)

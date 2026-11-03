@@ -76,3 +76,11 @@ class BooksTests(unittest.TestCase):
         self.assertTrue(unwanted(d('Dune','Edición Kindle')))
         self.assertFalse(unwanted(d('Zapatillas running','44')))
         self.assertFalse(unwanted(d('Auriculares bluetooth','Negro')))
+
+
+class ConsumablesTests(unittest.TestCase):
+    def test_printer_consumables_unwanted(self):
+        from cero.filters import unwanted
+        self.assertTrue(unwanted(d('Epson Cartucho Light Cian ULTRACHROME SC-P900','')))
+        self.assertTrue(unwanted(d('Tóner compatible HP 59A','')))
+        self.assertFalse(unwanted(d('Impresora Epson EcoTank','')))
