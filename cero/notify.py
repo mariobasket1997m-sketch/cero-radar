@@ -79,7 +79,7 @@ def main():
                     # Repetido: se da por tratado sin enviar.
                     c.execute('UPDATE notifications SET sent_at=? WHERE id=?',(now(),row['notification_id']));c.commit();repeated+=1;continue
                 if sent>=MAX_PER_RUN:waiting+=1;continue  # el resto queda en bandeja para el siguiente ciclo
-                if is_stale(deal):stale+=1;continue  # ficha vieja o sin foto: se reintenta cuando se vuelva a comprobar
+                if is_stale(deal):stale+=1;print('  Caducado: '+str(deal.get('title'))[:70]+' | comprobado: '+str(deal.get('checked_at'))+' | foto: '+str(deal.get('image'))[-20:]);continue  # ficha vieja o sin foto: se reintenta cuando se vuelva a comprobar
                 if send_deal(deal,silent=sent>0):  # solo el primer aviso de cada tanda suena; el resto, en silencio
                     seen.add(key);remember(c,deal)
                     c.execute('UPDATE notifications SET sent_at=? WHERE id=?',(now(),row['notification_id']));c.commit();sent+=1

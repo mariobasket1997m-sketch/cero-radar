@@ -73,6 +73,7 @@ jobs:
           path: |
             data
             config/market.local.json
+            cero/static/cache
           key: cero-data-${{ github.run_id }}
           restore-keys: cero-data-
 
