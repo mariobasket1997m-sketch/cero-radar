@@ -47,6 +47,16 @@ def remember(c,deal):
               (dedup_key(deal),deal.get('price'),now()))
 
 
+def is_stale(deal):
+    """Ficha comprobada hace más de 2 h o foto ausente en disco: send_deal la rechazaría sin avisar."""
+    from pathlib import Path
+    try:age=(datetime.now(timezone.utc)-datetime.fromisoformat(deal.get('checked_at'))).total_seconds()
+    except (TypeError,ValueError):return True
+    if age>7200:return True
+    image=deal.get('image') or ''
+    return not (Path(__file__).parent/'static'/'cache'/Path(image).name).exists()
+
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--send',action='store_true');args=parser.parse_args()
     if args.send and not armed():raise SystemExit('Telegram está desactivado o faltan credenciales. No se ha enviado nada.')
@@ -56,7 +66,7 @@ def main():
         rows=c.execute('SELECT n.id notification_id,d.* FROM notifications n JOIN deals d ON d.id=n.deal_id WHERE n.sent_at IS NULL ORDER BY COALESCE(d.score,0) DESC,n.id LIMIT 200').fetchall()
         print(str(len(rows))+' avisos en bandeja. '+('Envío activado.' if args.send else 'Sólo lectura: no se envían mensajes.'))
         if args.send:
-            sent=repeated=skipped_unwanted=skipped_size=0;seen=set()
+            sent=repeated=skipped_unwanted=skipped_size=stale=failed=0;seen=set();waiting=0
             for row in rows:
                 deal=unpack(row);key=dedup_key(deal)
                 bad=unwanted(deal)
@@ -68,11 +78,13 @@ def main():
                 if key in seen or is_repeat(c,deal):
                     # Repetido: se da por tratado sin enviar.
                     c.execute('UPDATE notifications SET sent_at=? WHERE id=?',(now(),row['notification_id']));c.commit();repeated+=1;continue
-                if sent>=MAX_PER_RUN:break  # el resto queda en bandeja para el siguiente ciclo
+                if sent>=MAX_PER_RUN:waiting+=1;continue  # el resto queda en bandeja para el siguiente ciclo
+                if is_stale(deal):stale+=1;continue  # ficha vieja o sin foto: se reintenta cuando se vuelva a comprobar
                 if send_deal(deal,silent=sent>0):  # solo el primer aviso de cada tanda suena; el resto, en silencio
                     seen.add(key);remember(c,deal)
                     c.execute('UPDATE notifications SET sent_at=? WHERE id=?',(now(),row['notification_id']));c.commit();sent+=1
-            print(f'Enviados: {sent}. Repetidos omitidos: {repeated}. Libros/consumibles descartados: {skipped_unwanted}. Talla no válida: {skipped_size}. En espera por el límite: {max(0,len(rows)-sent-repeated-skipped_unwanted-skipped_size)}.')
+                else:failed+=1
+            print(f'Enviados: {sent}. Repetidos omitidos: {repeated}. Libros/consumibles descartados: {skipped_unwanted}. Talla no válida: {skipped_size}. En espera por el límite: {waiting}. Caducados/sin foto (se reintentan): {stale}. Fallo de envío: {failed}.')
     finally:c.close()
 
 
