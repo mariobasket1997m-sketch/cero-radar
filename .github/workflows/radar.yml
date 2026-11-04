@@ -97,6 +97,11 @@ jobs:
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.test_telegram) }}
         run: python hunt.py --profile normal --wait
 
+      - name: Resumen de buscadores
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.test_telegram) }}
+        continue-on-error: true
+        run: python -m cero.enginereport
+
       - name: Enviar avisos a Telegram
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.test_telegram) }}
         run: python -m cero.notify --send
