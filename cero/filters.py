@@ -11,4 +11,8 @@ CONSUMABLE_RE=re.compile(r'\b(?:cartuchos?|toner|tinta para impresora|tintas? ep
 def unwanted(deal):
     """True si el producto no debe avisarse nunca (libros y consumibles de impresora)."""
     text=normalize(' '.join(str(deal.get(k) or '') for k in ('title','variant','category','subcategory','product_type')))
-    return bool(BOOK_RE.search(text) or CONSUMABLE_RE.search(text))
+    if BOOK_RE.search(text) or CONSUMABLE_RE.search(text):return True
+    # Descuento >=95 % contra un "precio de referencia" de Amazon con precio no nulo: casi siempre es una referencia inflada.
+    ref=normalize(str(deal.get('reference_source') or ''))
+    if deal.get('price') and (deal.get('discount_pct') or 0)>=95 and 'amazon' in ref and 'referencia' in ref:return True
+    return False

@@ -20,6 +20,9 @@ def _profile(name):
     return {k:set().union(*(p[k] for p in PROFILES.values())) for k in ('letters','waist','length','shoes')}
 SHOE_RE=re.compile(r'\b(?:zapatill\w*|zapato\w*|bota\w*|botin\w*|sandalia\w*|calzado|mocasin\w*|deportivas|sneakers?|chancla\w*)\b')
 CLOTHING_RE=re.compile(r'\b(?:camiseta|polo|camisa|sudadera|jersey|chaqueta|abrigo|cazadora|pantalon\w*|vaquero\w*|jeans|falda|vestido|mallas?|leggings?|chandal|bermuda\w*|short\w*|maillot|culotte|ropa)\b')
+# Género declarado en el título: un perfil no recibe lo que es claramente del otro género.
+FEMALE_RE=re.compile(r'mujer|\b(?:women\w*|woman|femenin\w*|senora\w*|chica\w*|dama\w*|lady|ladies)\b')
+MALE_RE=re.compile(r'hombre|\b(?:men|mens|man|masculin\w*|caballero\w*|chico\w*)\b')
 KIDS_RE=re.compile(r'\b\d{1,2}\s*(?:anos?|meses)\b|\b(?:nino|nina|bebe|infantil|junior)\b')
 
 
@@ -37,7 +40,17 @@ def wearable(deal,profile=None):
     P=_profile(profile)
     variant=normalize(deal.get('variant'));title=normalize(deal.get('title'))
     if KIDS_RE.search(variant) or KIDS_RE.search(title):return False
-    if not variant:return True
+    gender=' '.join((title,variant))
+    female=bool(FEMALE_RE.search(gender));male=bool(MALE_RE.search(gender))
+    if profile=='hombre' and female and not male:return False
+    if profile=='mujer' and male and not female:return False
+    if not variant:
+        # Sin variante: se busca la talla escrita en el título ("talla 36", "EU 36", "nº 36").
+        if k=='shoe':
+            nums=[int(n) for n in re.findall(r'(?:talla|tallas|eu|nº|no|num|numero|size|t)\.?\s*:?\s*(3\d|4\d)\b',title)]
+            if nums:return any(n in P['shoes'] for n in nums)
+        variant=title if k!='shoe' else ''
+        if not variant:return True
     if k=='shoe':
         nums=[int(float(n.replace(',','.'))) for n in re.findall(r'\b(3\d|4\d)(?:[.,]\d)?\b',variant)]
         return True if not nums else any(n in P['shoes'] for n in nums)

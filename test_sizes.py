@@ -84,3 +84,31 @@ class ConsumablesTests(unittest.TestCase):
         self.assertTrue(unwanted(d('Epson Cartucho Light Cian ULTRACHROME SC-P900','')))
         self.assertTrue(unwanted(d('Tóner compatible HP 59A','')))
         self.assertFalse(unwanted(d('Impresora Epson EcoTank','')))
+
+
+class GenderAndTitleSizeTests(unittest.TestCase):
+    def test_womens_shoes_not_for_man(self):
+        t=d('Reebok Floatzig Tread ZapatillasMujer','')
+        self.assertFalse(wearable(t,'hombre'))
+        self.assertTrue(wearable(t,'mujer'))
+
+    def test_mens_not_for_woman(self):
+        t=d('Zapatillas running para hombre','')
+        self.assertFalse(wearable(t,'mujer'))
+        self.assertTrue(wearable(t,'hombre'))
+
+    def test_unisex_passes(self):
+        self.assertTrue(wearable(d('Zapatillas hombre y mujer',''),'hombre'))
+        self.assertTrue(wearable(d('Zapatillas running',''),'hombre'))
+
+    def test_size_in_title(self):
+        self.assertFalse(wearable(d('Zapatillas running talla 36',''),'mujer'))
+        self.assertFalse(wearable(d('Zapatillas running talla 36',''),'hombre'))
+        self.assertTrue(wearable(d('Zapatillas running talla 44',''),'hombre'))
+        self.assertTrue(wearable(d('Zapatillas mujer EU 39',''),'mujer'))
+
+    def test_inflated_amazon_reference(self):
+        from cero.filters import unwanted
+        self.assertTrue(unwanted({'title':'Tinta pluma','price':4.55,'discount_pct':97,'reference_source':'Precio de referencia de Amazon'}))
+        self.assertFalse(unwanted({'title':'Zapatillas','price':23.17,'discount_pct':80,'reference_source':'Precio de referencia de Amazon'}))
+        self.assertFalse(unwanted({'title':'Regalo','price':0,'discount_pct':100,'reference_source':'Precio de referencia de Amazon'}))
