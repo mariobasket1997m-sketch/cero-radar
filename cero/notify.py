@@ -56,11 +56,14 @@ def main():
         rows=c.execute('SELECT n.id notification_id,d.* FROM notifications n JOIN deals d ON d.id=n.deal_id WHERE n.sent_at IS NULL ORDER BY COALESCE(d.score,0) DESC,n.id LIMIT 200').fetchall()
         print(str(len(rows))+' avisos en bandeja. '+('Envío activado.' if args.send else 'Sólo lectura: no se envían mensajes.'))
         if args.send:
-            sent=repeated=0;seen=set()
+            sent=repeated=skipped_unwanted=skipped_size=0;seen=set()
             for row in rows:
                 deal=unpack(row);key=dedup_key(deal)
-                if unwanted(deal) or not targets_for(deal):
-                    # Libros, o ropa/calzado que no es de la talla de nadie: se descarta sin avisar.
+                bad=unwanted(deal)
+                if bad or not targets_for(deal):
+                    # Libros, consumibles, o ropa/calzado que no es de la talla de nadie: se descarta sin avisar.
+                    if bad:skipped_unwanted+=1
+                    else:skipped_size+=1
                     c.execute('UPDATE notifications SET sent_at=? WHERE id=?',(now(),row['notification_id']));c.commit();continue
                 if key in seen or is_repeat(c,deal):
                     # Repetido: se da por tratado sin enviar.
@@ -69,7 +72,7 @@ def main():
                 if send_deal(deal,silent=sent>0):  # solo el primer aviso de cada tanda suena; el resto, en silencio
                     seen.add(key);remember(c,deal)
                     c.execute('UPDATE notifications SET sent_at=? WHERE id=?',(now(),row['notification_id']));c.commit();sent+=1
-            print(f'Enviados: {sent}. Repetidos omitidos: {repeated}.')
+            print(f'Enviados: {sent}. Repetidos omitidos: {repeated}. Libros/consumibles descartados: {skipped_unwanted}. Talla no válida: {skipped_size}. En espera por el límite: {max(0,len(rows)-sent-repeated-skipped_unwanted-skipped_size)}.')
     finally:c.close()
 
 
